@@ -7,7 +7,8 @@ contract VotingBase {
         NOT_RUNNING,
         AWAITING_CANDIDATE_LIST,
         AWAITING_VOTER_LIST,
-        RUNNING
+        RUNNING,
+        REVEALING
     }
 
     enum VoterStage {
@@ -29,10 +30,11 @@ contract VotingBase {
     }
 
     mapping(uint64 => Candidate) indexToCandidate;
-    mapping(uint64 => Voter) indexToVoter;
+    mapping(uint64 => Voter) internal indexToVoter;
 
-    uint64 private numCandidates;
-    uint64 private numVoters;
+    uint64 internal numCandidates;
+    uint64 internal numVoters;
+    uint64 internal nonce;
     address payable public owner;
     ElectionStage public electionStage;
 
@@ -41,5 +43,136 @@ contract VotingBase {
         numCandidates = 0;
         numVoters = 0;
         electionStage = ElectionStage.NOT_RUNNING;
+        nonce = 0;
     }
+
+    function random(uint64 maxNumber, uint64 minNumber)
+        internal
+        returns (uint256 amount)
+    {
+        amount =
+            uint256(
+                keccak256(abi.encodePacked(block.timestamp, msg.sender, nonce))
+            ) %
+            (maxNumber - minNumber);
+        amount = amount + minNumber;
+        nonce++;
+        return amount;
+    }
+
+    function addCandidate(address addr) public {
+        require(
+            electionStage == ElectionStage.AWAITING_CANDIDATE_LIST,
+            "Not accepting candidates right now"
+        );
+        numCandidates++;
+        indexToCandidate[numCandidates] = Candidate(addr, 0, numCandidates);
+        emit CandidateAdded(numCandidates, addr);
+    }
+
+    function addVoter(address addr) public {
+        require(
+            electionStage == ElectionStage.AWAITING_VOTER_LIST,
+            "Not accepting voters right now"
+        );
+        numVoters++;
+        indexToVoter[numVoters] = Voter(addr, numVoters, VoterStage.REGISTERED);
+        emit VoterAdded(numVoters, addr);
+    }
+
+    function getNumberOfCandidates() public view returns (uint64) {
+        return numCandidates;
+    }
+
+    function getNumberOfVoters() public view returns (uint64) {
+        return numVoters;
+    }
+
+    function acceptCandidates() public {
+        require(
+            electionStage == ElectionStage.NOT_RUNNING,
+            "Election already running"
+        );
+        electionStage = ElectionStage.AWAITING_CANDIDATE_LIST;
+        emit CandidateSignUpStart();
+    }
+
+    function acceptVoters() public {
+        require(
+            electionStage == ElectionStage.AWAITING_CANDIDATE_LIST,
+            "Candidates not registered till now"
+        );
+        electionStage = ElectionStage.AWAITING_VOTER_LIST;
+        emit VoterSignUpStart();
+    }
+
+    modifier startElectionModifier() {
+        require(
+            electionStage == ElectionStage.AWAITING_VOTER_LIST,
+            "Voters not registered yet"
+        );
+        _;
+    }
+
+    modifier startRevealModifier() {
+        require(
+            electionStage == ElectionStage.RUNNING,
+            "Election not running at the moment!"
+        );
+        _;
+    }
+
+    modifier endElectionModifier() {
+        require(
+            electionStage == ElectionStage.REVEALING,
+            "Reveal not started yet!"
+        );
+        _;
+    }
+
+    modifier clearDataModifier() {
+        require(
+            electionStage == ElectionStage.NOT_RUNNING,
+            "Election in progress!"
+        );
+        for (uint64 i = 1; i <= numVoters; i++) {
+            delete (indexToVoter[i]);
+        }
+        for (uint64 i = 1; i <= numCandidates; i++) {
+            delete (indexToCandidate[i]);
+        }
+        _;
+        numCandidates = 0;
+        numVoters = 0;
+    }
+
+    function startElection() public virtual startElectionModifier {}
+
+    function startReveal() public virtual startRevealModifier {}
+
+    function endElection() public virtual endElectionModifier {}
+
+    function clearData() public virtual clearDataModifier {}
+
+    function getWinner() public view virtual returns (uint64) {}
+
+    function getElectionStatus() public view returns (uint256) {
+        if (electionStage == ElectionStage.NOT_RUNNING) {
+            return 0;
+        } else if (electionStage == ElectionStage.AWAITING_CANDIDATE_LIST) {
+            return 1;
+        } else if (electionStage == ElectionStage.AWAITING_VOTER_LIST) {
+            return 2;
+        } else if (electionStage == ElectionStage.RUNNING) {
+            return 3;
+        } else if (electionStage == ElectionStage.REVEALING) {
+            return 4;
+        }
+        return 10;
+    }
+
+    event CandidateSignUpStart();
+    event CandidateAdded(uint64 candidateID, address candidateAddress);
+    event VoterSignUpStart();
+    event VoterAdded(uint64 voterID, address voterAddress);
 }
