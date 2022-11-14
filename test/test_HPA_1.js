@@ -1,11 +1,11 @@
-const testcontract = artifacts.require("VotingBase");
+const testcontract = artifacts.require("HCA_Elections");
 
 contract("testcontract", (accounts) => {
     it ("Clear data", async() => {
         const instance = await testcontract.deployed();
         await instance.clearData();
     });
-
+    
     it("Start elections", async() => {
         const instance = await testcontract.deployed();
         await instance.acceptCandidates();
