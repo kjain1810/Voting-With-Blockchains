@@ -19,7 +19,7 @@ contract HCA_Elections is VotingBase {
 
     function setDummyCoinValue(uint8 val) public {
         require(
-            electionStage != ElectionStage.RUNNING,
+            electionStage != ElectionStage.REVEALING,
             "Election already underway"
         );
         numDummyCoins = val;
@@ -161,5 +161,4 @@ contract HCA_Elections is VotingBase {
         uint256 voteCoinIndex,
         uint256 voteCoinKey
     );
-    event DeclareVotes(uint64 candidateID, uint64 numVotes);
 }
