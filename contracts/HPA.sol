@@ -5,9 +5,12 @@ pragma experimental ABIEncoderV2;
 import {VotingBase} from "./VotingBase.sol";
 
 contract HPA_Elections is VotingBase {
+    /// @dev number of account for each user
     uint256 private numAccounts;
+    /// @dev flag whether `numAccounts` has been set or not
     bool private numAccountsValueSet = false;
 
+    /// @dev constructor for the class, calls `VotingBase` constructor
     constructor() VotingBase() {}
 
     mapping(uint256 => uint64) accountNumberToCandidate;
@@ -15,6 +18,8 @@ contract HPA_Elections is VotingBase {
     mapping(uint64 => uint256[]) accountsForCandidate;
     mapping(uint64 => uint256[]) accountsToVoters;
 
+    /// @notice set the number of accounts for each candidate
+    /// @param X number of accounts
     function setNumberOfAccounts(uint256 X) public {
         require(
             electionStage != ElectionStage.REVEALING,
@@ -24,11 +29,13 @@ contract HPA_Elections is VotingBase {
         numAccountsValueSet = true;
     }
 
+    /// @notice gets number of accounts for each user. Returns error if not set
     function getNumberOfAccounts() public view returns (uint256) {
         require(numAccountsValueSet == true, "Value not set");
         return numAccounts;
     }
 
+    /// @dev internal function to allot the accounts
     function allotAccounts() private {
         for (uint256 i = 0; i < numAccounts * numCandidates; i++) {
             accountNumberToCandidate[i] = convert256to64(
@@ -51,6 +58,8 @@ contract HPA_Elections is VotingBase {
         }
     }
 
+    /// @notice starts the election
+    /// @dev calls the `allotAccounts` function
     function startElection() public override startElectionModifier {
         require(
             numAccountsValueSet == true,
@@ -61,6 +70,10 @@ contract HPA_Elections is VotingBase {
         emit AccountsAllotted();
     }
 
+    /// @notice function to get the account ID of a particular candidate for a particular voter
+    /// @param voterID ID of the voter
+    /// @param candidateID ID of the candidate
+    /// @return uint256 the account ID of the candidate for that voter
     function getCandidateAccount(uint64 voterID, uint64 candidateID)
         public
         view
@@ -78,6 +91,9 @@ contract HPA_Elections is VotingBase {
         return accountsToVoters[voterID][candidateID - 1];
     }
 
+    /// @notice send vote from voter
+    /// @param voterID ID of the voter
+    /// @param candidateAccount account ID to send vote to
     function sendVote(uint64 voterID, uint256 candidateAccount) public {
         require(voterID <= numVoters, "Invalid voter ID");
         require(voterID > 0, "Invalid voter ID");
@@ -92,10 +108,12 @@ contract HPA_Elections is VotingBase {
         emit VoteSend(voterID, candidateAccount);
     }
 
+    /// @notice starts reveal phase
     function startReveal() public override {
         electionStage = ElectionStage.REVEALING;
     }
 
+    /// @notice ends the election
     function endElection() public override endElectionModifier {
         for (uint64 i = 0; i < numCandidates * numAccounts; i++) {
             emit RevealAccountToCandidate(i, accountNumberToCandidate[i]);
@@ -106,6 +124,8 @@ contract HPA_Elections is VotingBase {
         electionStage = ElectionStage.NOT_RUNNING;
     }
 
+    /// @notice function to get the winner of the election
+    /// @return uint64 ID of the candidate
     function getWinner() public view override returns (uint64) {
         uint64 maxVotes = 0;
         uint64 winnerID = 0;
@@ -118,6 +138,7 @@ contract HPA_Elections is VotingBase {
         return winnerID;
     }
 
+    /// @notice clears data for next election
     function clearData() public override clearDataModifier {
         for (uint64 i = 1; i <= numCandidates; i++) {
             delete (accountsForCandidate[i]);
@@ -132,7 +153,16 @@ contract HPA_Elections is VotingBase {
         numAccountsValueSet = false;
     }
 
+    /// @notice records allotment of accounts
     event AccountsAllotted();
+
+    /// @notice records vote being sent
+    /// @param voterID ID of the voter
+    /// @param accountNumber account number to send the vote to
     event VoteSend(uint64 voterID, uint256 accountNumber);
+
+    /// @notice records which account is allotted to which candidate
+    /// @param accoutnNumber account number
+    /// @param candidateID ID of the candidate
     event RevealAccountToCandidate(uint256 accoutnNumber, uint64 candidateID);
 }
