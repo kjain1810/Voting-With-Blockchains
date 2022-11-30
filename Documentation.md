@@ -90,7 +90,7 @@ be able to verify all the other conditions on their own
  ## Hidden Party Approach 
  In this approach each party has multiple accounts, each voter gets one account for each party and  voters will have different combinations.
 
-### Registering :
+  ### Registering :
  Election Commission (EC) first starts accepting candidates (`addCandidates`) and changes it state to accepting candidates and then voters (`add voters`) by changing its state to acceptvoters, thats equivalent to EC registering people. With each change in election state, it is transmitted on blockchain.
 
  Functions :
